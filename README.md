@@ -100,7 +100,15 @@ Once your virtual environment is created, you need to install the necessary Pyth
     python -m pip install streamlit chromadb numpy sentence_transformers pocketflow ollama
     ```
 
-### 4. Running the Application
+### 4. Download the transcript dataset
+
+It took over a day to embed all the chunks, so take advantage of that by using this:
+
+[HuggingFace Dataset](https://huggingface.co/datasets/Theodor-Crosswell/All_The_Preaching_Transcripts)
+
+Download the .chroma or .chroma.zip and place .chroma in the root directory of the project, so that it is like C:\repos\All_The_Preaching_Search_Tools\.chroma\
+
+### 5. Running the Application
 
 With the dependencies installed, you are now ready to launch the application.
 
@@ -133,6 +141,15 @@ Your web browser should automatically open with the application running.
 ## Contributing
 
 Contributions are welcome! If you have suggestions for improvements or want to add new features, please feel free to open an issue or submit a pull request.
+
+---
+
+## TODO
+
+* **Dataset updates:** Make updating the .chroma database easier when new releases are published.
+* **Better LLM system prompts:** to allow for higher quality LLM output.
+* **Full-text search option:** In case you need to find a specific word.
+* **Other things:** There are many other things to do, this is just a list of some of them.
 
 ---
 
