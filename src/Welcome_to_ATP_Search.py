@@ -1,4 +1,18 @@
-# All The Preaching Search Tools
+import streamlit as st
+
+
+st.set_page_config(
+    page_title="Hello",
+    page_icon="👋",
+)
+
+st.write("# Welcome to Streamlit! 👋")
+
+st.sidebar.success("Select a demo above.")
+
+st.markdown(
+    """
+    # All The Preaching Search Tools
 
 **Semantic search and AI-powered answers for "All The Preaching" transcripts.**
 
@@ -139,3 +153,5 @@ Contributions are welcome! If you have suggestions for improvements or want to a
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+"""
+)
