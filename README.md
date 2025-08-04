@@ -112,7 +112,7 @@ It took over a day to embed all the chunks, so take advantage of that by using t
 
 [HuggingFace Dataset](https://huggingface.co/datasets/Theodor-Crosswell/All_The_Preaching_Transcripts)
 
-Download the .chroma or .chroma.zip and place .chroma in the root directory of the project, so that it is like C:\repos\All_The_Preaching_Search_Tools\.chroma\
+Download the .chroma or .chroma.zip and place .chroma in the root directory of the project, so that it is like C:\repos\All_The_Preaching_Search_Tools\\.chroma
 
 ### 5. Running the Application
 
