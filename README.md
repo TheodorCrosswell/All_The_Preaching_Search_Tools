@@ -6,6 +6,12 @@ This powerful tool allows you to perform semantic searches across a vast library
 
 ---
 
+![atp_search_tools_demo](https://github.com/user-attachments/assets/5f58892a-938f-44f4-9a35-404b8da1064f)
+
+https://youtu.be/BVBLNzC--7A
+
+---
+
 ## Features
 
 *   **Semantic Search:** Go beyond simple keyword matching. Find relevant passages based on the meaning and context of your search terms.
