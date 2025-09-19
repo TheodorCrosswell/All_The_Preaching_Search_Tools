@@ -1,3 +1,6 @@
 .venv
-.chroma
+.chroma*
+.chroma_new.zip
 **/__pycache__
+.env
+models/

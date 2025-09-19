@@ -1,25 +1,132 @@
 import json
-from chromadb import QueryResult
 from sentence_transformers import CrossEncoder
-from chromadb import QueryResult, PersistentClient
+from chromadb import QueryResult, PersistentClient, Settings
+from chromadb.utils import embedding_functions
 import numpy as np
 import os
-import ollama
 
-reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+# from sentence_transformers import SentenceTransformer
+# model_name = 'sentence-transformers/all-MiniLM-L6-v2'
+# local_model_path = 'models/all-MiniLM-L6-v2'
+
+# # This will download the model and save it to the specified path
+# model = SentenceTransformer(model_name)
+# model.save(local_model_path)
+
+
+# Get the absolute path to the directory where your script is located
+script_dir = os.path.dirname(os.path.abspath(__file__)) 
+project_root_dir = os.path.dirname(script_dir)
 
 max_rerank_results = 100
 max_retrieval_results = 1000
+chroma_db_path = ".chroma_new"
+# Construct the absolute path to your model
+model_path = os.path.join(project_root_dir, "models", "all-MiniLM-L6-v2")
+print("'utils.py' initialization started.")
+print("Loading Embedding Function.")
+sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
+    model_name=model_path
+)
+print("Loading Cross-encoder.")
+reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L6-v2", cache_folder="models")
+print("Loading ChromaDB client.")
+client = PersistentClient(
+    path=chroma_db_path,
+    settings=Settings(
+        is_persistent=True,
+        persist_directory=chroma_db_path,
+        anonymized_telemetry=False,
+    ),
+)
+print("Loading ChromaDB collection.")
+transcript_collection = client.get_collection(name="atp", embedding_function=sentence_transformer_ef)
+print("'utils' initialization complete.")
+# #######################
 
-# --- ChromaDB Client Setup ---
-# This code runs ONCE when the server starts.
-# Construct the path to the database directory at the project root.
-# This makes the path independent of where the script is run from.
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-chroma_db_path = os.path.join(project_root, ".chroma")
-client = PersistentClient(path=chroma_db_path)
-transcript_collection = client.get_or_create_collection(name="atp")
+# import time
+# import chromadb
 
+# # Initialize the ChromaDB client (use a persistent client if your data is on disk)
+# # client = chromadb.PersistentClient(path="/path/to/your/db")
+# client = PersistentClient(".chroma")
+# new_client = PersistentClient(".chroma_new")
+
+# model_path = "models/all-MiniLM-L6-v2"
+# sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
+#     model_name=model_path
+# )
+
+# # 1. Get the existing collection (DO NOT provide an embedding function here)
+# try:
+#     old_collection = client.get_collection(name="atp")
+# except ValueError:
+#     print("Could not find the old collection. Please check the name and client configuration.")
+#     # Handle the error as needed
+#     exit()
+
+# # 2. Create a new collection with the local embedding function
+# new_collection_name = "atp"
+# # try:
+# #     client.delete_collection(name=new_collection_name) # Delete if it exists from a previous run
+# # except NotFoundError:
+# #     pass # Collection didn't exist, which is fine
+
+# new_collection = new_client.create_collection(
+#     name=new_collection_name,
+#     embedding_function=sentence_transformer_ef
+# )
+# print("\nStarting data migration...")
+# total_records = old_collection.count()
+# print(f"Total records to migrate: {total_records}")
+
+# start_time = time.time()
+
+# BATCH_SIZE = 5000
+
+# # Loop through the old collection in batches
+# for offset in range(0, total_records, BATCH_SIZE):
+#     # Fetch a batch of data
+#     print(f"Processing batch: records {offset} to {offset + BATCH_SIZE}...")
+#     batch = old_collection.get(
+#         limit=BATCH_SIZE,
+#         offset=offset,
+#         include=["documents", "metadatas", "embeddings"]
+#     )
+
+#     # If the batch is empty, we're done
+#     if not batch["ids"]:
+#         break
+
+#     # Add the batch to the new collection
+#     # We provide the existing embeddings to avoid re-calculating them
+#     new_collection.add(
+#         ids=batch["ids"],
+#         embeddings=batch["embeddings"],
+#         metadatas=batch["metadatas"],
+#         documents=batch["documents"]
+#     )
+
+# end_time = time.time()
+# print(f"\nMigration completed in {end_time - start_time:.2f} seconds.")
+
+# # --- Step 5: Verification and Cleanup ---
+
+# # Verify that all records have been migrated
+# old_count = old_collection.count()
+# new_count = new_collection.count()
+
+# print(f"\nVerification:")
+# print(f"Records in old collection: {old_count}")
+# print(f"Records in new collection: {new_count}")
+
+# if old_count != new_count:
+#     print("Warning: Record counts do not match. Please investigate before deleting the old collection.")
+# # # 5. (Optional but recommended) Delete the old collection
+# # client.delete_collection(name="my_existing_collection")
+# # print("Old collection has been removed.")
+
+# ################################
 
 def bi_encoder_retrieve(
     query: str, filters: dict = {}, top_n_results: int = 10
@@ -62,14 +169,6 @@ def bi_encoder_retrieve(
         )
 
     return results
-
-
-# Not implementing these yet. Takes a lot of resources.
-# def sparse_encoder_retrieve(query: str, filters: str) -> str:
-#     return "Sparse encoder search has not yet been implemented. Please use Bi-encoder instead."
-# def hybrid_search_retrieve(query: str, filters: str) -> str:
-#     return "Hybrid search has not yet been implemented. Please use Bi-encoder instead."
-
 
 def cross_encoder_rerank(
     query: str, results: QueryResult, top_n_results: int = 5
@@ -165,75 +264,8 @@ def format_results(results: QueryResult) -> str:
             """
     return formatted_results
 
-
-def analyse_query(
-    model: str = "gemma3:1b-it-qat",
-    query="How to enter text into a text box and click send?",
-):
-    """"""
-    system_prompt = """
-    You are tasked with analyzing the user's query to determine if it
-    is suitable for use in RAG, and applying any necessary transformations
-    to improve the quality of search results.
-    Use the tools provided to transform the query.
-    If the query needs to be optimized, use the appropriate tool.
-    """
-    hyde_response = ollama.chat(
-        model=model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": query},
-        ],
-    )
-    return hyde_response
-
-
-def hyde_query(
-    model: str = "gemma3:1b-it-qat",
-    query: str = "How to enter text into a text box and click send?",
-):
-    """Generates a Hyptothetical Document Expansion (HyDE) text
-    based on the query given.
-    This is used to enhance retrieval in RAG.
-
-    Args:
-        model:str - the name of the LLM model to be used to generate the document. Leave this as default 'gemma3:1b-it-qat' unless otherwise instructed.
-        query:str - the question to be hypothetically answered. This is where you put the user's query.
-    Returns:
-        hyde_response:str - the content of the LLM response.
-    """
-    system_prompt = """
-    You are an Independent Fundamental Baptist Pastor. You are preaching a sermon about this question. The sentence should not contain direct address to an audience (e.g., 'Brethren'). Use plain, direct language, avoiding ornate or overly formal phrasing (e.g., 'in the sight of Almighty God'). Do not include references to external sources. Give me a short paragraph from your sermon that answers this question with an explanation.
-    """
-    hyde_response = ollama.chat(
-        model=model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": query},
-        ],
-    )
-    return hyde_response
-
-
-def analyse_results(
-    model: str = "gemma3:1b-it-qat",
-    question="How to type words into a text box?",
-    context="You can type words into a text box by using the keyboard.",
-):
-    """"""
-    system_prompt = """
-    This user has a question. Answer the question
-    using the texts provided in the context. 
-    Make the text in Markdown format.
-    """  # TODO improve prompt
-    response = ollama.chat(
-        model=model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {
-                "role": "user",
-                "content": f"""question: "{question}" context: "{context}" """,
-            },
-        ],
-    )
-    return response
+# Not implementing these yet. Takes a lot of resources.
+# def sparse_encoder_retrieve(query: str, filters: str) -> str:
+#     return "Sparse encoder search has not yet been implemented. Please use Bi-encoder instead."
+# def hybrid_search_retrieve(query: str, filters: str) -> str:
+#     return "Hybrid search has not yet been implemented. Please use Bi-encoder instead."

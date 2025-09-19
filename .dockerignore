@@ -1,0 +1,29 @@
+*.zip
+.chroma_new.zip
+.chroma.zip
+.dockerignore
+.gitignore
+Dockerfile
+LICENSE
+README.md
+
+# Mount this instead of including in the image
+.chroma_new/
+
+# Ignore Git files
+.git
+.gitignore
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore virtual environment folders
+venv/
+.venv/
+
+# Ignore IDE-specific folders
+.idea/
+.vscode/
