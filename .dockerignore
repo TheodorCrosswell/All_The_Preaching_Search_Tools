@@ -8,7 +8,6 @@ LICENSE
 README.md
 .env
 temp.py
-models/all-MiniLM-L6-v2
 
 # Now using ChromaDB Cloud instead of local DB
 .chroma_new/
