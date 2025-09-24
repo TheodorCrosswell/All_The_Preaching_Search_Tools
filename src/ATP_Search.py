@@ -43,6 +43,30 @@ with st.sidebar:
         "Document text contains:", disabled=not use_where_document
     )
 
+    # --- Links Section ---
+    st.header("Resources & Links")
+
+    with st.expander("Links to Churches"):
+        st.markdown("""
+        - [Faithful Word Baptist Church](https://www.faithfulwordbaptist.org/page5.html)
+        - [Stedfast Baptist Church](https://sbckjv.com/gospel/)
+        - [Anchor Baptist Church](https://anchorkjv.com/)
+        """)
+
+    with st.expander("Contact Links"):
+        st.markdown("""
+        - [Github Profile](https://github.com/TheodorCrosswell)
+        - [LinkedIn](https://www.linkedin.com/in/theodor-crosswell-a08b4a2a5/)
+        """)
+
+    with st.expander("Project Links"):
+        st.markdown("""
+        - [Docker Repo](https://hub.docker.com/repository/docker/theodorcrosswell/atp-search/general)
+        - [Hugging Face Repo](https://huggingface.co/datasets/Theodor-Crosswell/All_The_Preaching_Transcripts)
+        - [Github Repo](https://github.com/TheodorCrosswell/All_The_Preaching_Search_Tools)
+        """)
+
+
 # --- Main Page Layout ---
 st.title("ATP Advanced Sermon Search")
 
