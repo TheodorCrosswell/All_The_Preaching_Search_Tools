@@ -1,55 +1,80 @@
 import streamlit as st
 
+# Initialize the backend functions. This might take a moment on first run.
 with st.spinner("Initializing this instance. The page should load within 10-30 seconds."):
     from utils import bi_encoder_retrieve, format_results
 
-# .\.venv\Scripts\python.exe -m streamlit run .\src\ATP_Search.py
-
+# Set the page configuration for a better layout
 st.set_page_config(
     layout="wide",
     page_title="ATP Search",
-    page_icon=":material/manage_search:",)
+    page_icon=":material/manage_search:",
+)
 
-if "shared_store" not in st.session_state:
-    st.session_state.shared_store = {
-        "results": "No search results yet. Try submitting a query.",
-        "top_retrieve": 100,
-        "top_rerank": 10,
-        "rerank": False,
+# Initialize session state to hold results between interactions
+if "results" not in st.session_state:
+    st.session_state.results = "No search results yet. Try submitting a query."
+
+# --- Sidebar for Settings and Filters ---
+with st.sidebar:
+    st.header("Search Settings")
+    top_retrieve = st.slider(
+        "Bi-Encoder retrieval size", 1, 200, 100,
+        help="The number of initial candidates to retrieve from the database."
+    )
+    use_reranker = st.checkbox(
+        "Use Reranker?", value=False,
+        help="Improves relevance by re-scoring the initial results, but is slower."
+    )
+    top_rerank = st.slider(
+        "Reranker display size", 1, 200, 10, disabled=not use_reranker,
+        help="The final number of results to display after reranking."
+    )
+
+    st.header("Metadata Filters")
+    video_id_filter = st.text_input("Video ID:", help="Should be a whole number, 7 digits long.")
+    title_filter = st.text_input("Title:")
+    preacher_filter = st.text_input("Preacher:")
+    section_filter = st.text_input("Section:")
+
+    st.header("Full-Text Document Filter")
+    use_where_document = st.checkbox("Enable search in document text")
+    where_document_query = st.text_input(
+        "Document text contains:", disabled=not use_where_document
+    )
+
+# --- Main Page Layout ---
+st.title("ATP Advanced Sermon Search")
+
+# The main search query input
+search_query = st.text_area("Enter your semantic search query here.", height=100)
+
+if st.button("Search", type="primary"):
+    # Consolidate metadata filters into a dictionary
+    metadata_filters = {
+        "video_id": video_id_filter.strip(),
+        "title": title_filter.strip().lower(),
+        "preacher": preacher_filter.strip().lower(),
+        "section": section_filter.strip().lower(),
     }
+    # Remove any filters that are empty
+    metadata_filters = {k: v for k, v in metadata_filters.items() if v}
 
+    with st.spinner("Searching..."):
+        # Call the backend function with all the UI parameters
+        search_results = bi_encoder_retrieve(
+            query=search_query,
+            top_n_results=top_retrieve,
+            rerank=use_reranker,
+            rerank_top_n=top_rerank,
+            metadata_filters=metadata_filters,
+            use_where_document=use_where_document,
+            where_document_query=where_document_query.strip()
+        )
 
-def get_query_docs(query: str):
-    """"""
-    with st.spinner("Retrieving relevant chunks from ATP transcripts..."):
-         # Search for the most similar documents
-        search_results = bi_encoder_retrieve(query=query, top_n_results=st.session_state.shared_store["top_retrieve"], rerank=st.session_state.shared_store["rerank"])
-        # if st.session_state.shared_store["rerank"]:
-        #     search_results = cross_encoder_rerank(
-        #         query=query, results=search_results, top_n_results=st.session_state.shared_store["top_rerank"]
-        #     )
-        # Convert to text
-        results_text = format_results(search_results)
-        st.session_state.shared_store["results"] = results_text
+        # Format and store results in the session state
+        st.session_state.results = format_results(search_results)
 
-
-search_col, settings_col = st.columns([3, 1])
-with settings_col:
-    st.write("Settings")
-    st.session_state.shared_store["top_retrieve"] = st.slider(
-        "Top Bi-Encoder results", 1, 200, 100
-    )
-    st.session_state.shared_store["top_rerank"] = st.slider(
-        "Top Reranker results", 1, 50, 10
-    )
-    st.session_state.shared_store["rerank"] = st.checkbox(
-        "Use Reranker? (Improves relevance, but is slower)"
-    )
-
-with search_col:
-    search_query = st.text_area("Enter your search query.")
-    if st.button("Search"):
-        get_query_docs(search_query)
-    st.markdown(
-        st.session_state.shared_store["results"]
-    )
+# Display the formatted search results
+st.markdown("---")
+st.markdown(st.session_state.results, unsafe_allow_html=True)
