@@ -6,8 +6,11 @@
 Dockerfile
 LICENSE
 README.md
+.env
+temp.py
+models/all-MiniLM-L6-v2
 
-# Mount this instead of including in the image
+# Now using ChromaDB Cloud instead of local DB
 .chroma_new/
 
 # Ignore Git files

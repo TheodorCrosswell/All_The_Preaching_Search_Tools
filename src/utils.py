@@ -1,9 +1,22 @@
+import time
+
+# --- Initialization Timer ---
+init_start_time = time.time()
+print("'utils.py' initialization started.", flush=True)
+
 import json
 from sentence_transformers import CrossEncoder
-from chromadb import QueryResult, PersistentClient, Settings
+from chromadb import QueryResult, PersistentClient, Settings, CloudClient
 from chromadb.utils import embedding_functions
 import numpy as np
 import os
+import dotenv
+from streamlit import cache_resource
+
+print(f"'utils.py' imports done at {time.time() - init_start_time:.2f} seconds.", flush=True)
+
+dotenv.load_dotenv()
+
 
 # from sentence_transformers import SentenceTransformer
 # model_name = 'sentence-transformers/all-MiniLM-L6-v2'
@@ -15,33 +28,48 @@ import os
 
 
 # Get the absolute path to the directory where your script is located
-script_dir = os.path.dirname(os.path.abspath(__file__)) 
+script_dir = os.path.dirname(os.path.abspath(__file__))
 project_root_dir = os.path.dirname(script_dir)
 
-max_rerank_results = 100
-max_retrieval_results = 1000
-chroma_db_path = ".chroma_new"
+max_rerank_results = 50
+max_retrieval_results = 200
+# chroma_db_path = ".chroma_new"
 # Construct the absolute path to your model
-model_path = os.path.join(project_root_dir, "models", "all-MiniLM-L6-v2")
-print("'utils.py' initialization started.")
-print("Loading Embedding Function.")
-sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
-    model_name=model_path
+# model_path = os.path.join(project_root_dir, "models", "all-MiniLM-L6-v2")
+
+# print("Loading Embedding Function.", flush=True)
+# sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
+#     model_name=model_path
+# )
+
+@cache_resource
+def load_reranker():
+    print(f"Start loading Cross-encoder at {time.time() - init_start_time:.2f} seconds.", flush=True)
+    reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L6-v2", cache_folder="models")
+    return reranker
+# reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L6-v2", cache_folder="models")
+# Load the reranker using the cached function
+reranker = load_reranker()
+print(f"Start loading ChromaDB client at {time.time() - init_start_time:.2f} seconds.", flush=True)
+client = CloudClient(
+    api_key=os.getenv("CHROMADB_CLOUD_API_KEY"),
+    tenant=os.getenv("CHROMADB_CLOUD_TENANT"),
+    database=os.getenv("CRHOMADB_CLOUD_DATABASE"),
 )
-print("Loading Cross-encoder.")
-reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L6-v2", cache_folder="models")
-print("Loading ChromaDB client.")
-client = PersistentClient(
-    path=chroma_db_path,
-    settings=Settings(
-        is_persistent=True,
-        persist_directory=chroma_db_path,
-        anonymized_telemetry=False,
-    ),
-)
-print("Loading ChromaDB collection.")
-transcript_collection = client.get_collection(name="atp", embedding_function=sentence_transformer_ef)
-print("'utils' initialization complete.")
+# client = PersistentClient(
+#     path=chroma_db_path,
+#     settings=Settings(
+#         is_persistent=True,
+#         persist_directory=chroma_db_path,
+#         anonymized_telemetry=False,
+#     ),
+# )
+print(f"Start loading ChromaDB collection at {time.time() - init_start_time:.2f} seconds.", flush=True)
+# transcript_collection = client.get_collection(name="atp", embedding_function=sentence_transformer_ef)
+transcript_collection = client.get_collection(name="atp")
+print(f"Collection size: {transcript_collection.count()} Chunks", flush=True)
+init_end_time = time.time()
+print(f"'utils.py' initialization complete in {init_end_time - init_start_time:.2f} seconds.", flush=True)
 # #######################
 
 # import time
@@ -129,11 +157,14 @@ print("'utils' initialization complete.")
 # ################################
 
 def bi_encoder_retrieve(
-    query: str, filters: dict = {}, top_n_results: int = 10
+    query: str, filters: dict = {}, top_n_results: int = 10, rerank:bool = False
 ) -> QueryResult:
     """
     This function now searches ChromaDB using the query and a dictionary of filters.
     """
+    # --- Bi-encoder Timer ---
+    retrieve_start_time = time.time()
+
     if top_n_results > max_retrieval_results:
         top_n_results = max_retrieval_results
     where_conditions = []
@@ -151,28 +182,35 @@ def bi_encoder_retrieve(
         final_where_clause = {"$and": where_conditions}
     elif len(where_conditions) == 1:
         final_where_clause = where_conditions[0]
-
+    log_string = f"ChromaDB Query: text='{query}', top_n_results={top_n_results},"
     # Perform the query
     if final_where_clause:
+        log_string += f" where={json.dumps(final_where_clause)},"
         # Case 1: User selected filters. Query WITH a where clause.
-        print(f"ChromaDB Query: text='{query}', where={json.dumps(final_where_clause)}")
         results = transcript_collection.query(
             query_texts=[query], n_results=top_n_results, where=final_where_clause
         )
     else:
+        log_string += f" no metadata filters,"
         # Case 2: No filters selected. Query WITHOUT a where clause.
-        print(f"ChromaDB Query: text='{query}', no metadata filters.")
         results = transcript_collection.query(
             query_texts=[query],
             n_results=top_n_results,
             # No 'where' parameter here
         )
-
+    
+    retrieve_end_time = time.time()
+    print(f"{log_string} completed in {retrieve_end_time - retrieve_start_time:.2f} seconds.", flush=True)
+    if (rerank):
+        results = cross_encoder_rerank(query, results, top_n_results)
     return results
 
 def cross_encoder_rerank(
     query: str, results: QueryResult, top_n_results: int = 5
-) -> dict:
+) -> QueryResult:
+    
+    # --- Rerank Timer ---
+    rerank_start_time = time.time()
 
     if top_n_results > max_rerank_results:
         top_n_results = max_rerank_results
@@ -209,6 +247,9 @@ def cross_encoder_rerank(
     top_n_reranked_results = {
         key: [value[0][:top_n_results]] for key, value in reranked_results.items()
     }
+    
+    rerank_end_time = time.time()
+    print(f"Rerank for text='{query}', {len(ids)} items, top_n_results={top_n_results}, completed in {rerank_end_time - rerank_start_time:.2f} seconds.", flush=True)
     return top_n_reranked_results
 
 
@@ -235,11 +276,11 @@ def format_results(results: QueryResult) -> str:
             score = scores_list[i] if i < len(scores_list) else "N/A"
 
             # Now you can safely format, using the checks from the previous discussion
-            preacher_str = metadata["preacher"].title()
-            title_str = metadata["title"].title()
-            video_url_str = metadata["video_url"]
-            mp4_url_str = metadata["mp4_url"]
-            vtt_url_str = metadata["vtt_url"]
+            preacher_str = metadata.get("preacher", "N/A").title()
+            title_str = metadata.get("title", "N/A").title()
+            video_url_str = metadata.get("video_url", "#")
+            mp4_url_str = metadata.get("mp4_url", "#")
+            vtt_url_str = metadata.get("vtt_url", "#")
             distance_str = (
                 f"{distance:.4f}"
                 if isinstance(distance, (int, float))

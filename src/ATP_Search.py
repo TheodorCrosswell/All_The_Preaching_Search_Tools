@@ -1,7 +1,7 @@
 import streamlit as st
 
 with st.spinner("Initializing this instance. The page should load within 10-30 seconds."):
-    from utils import bi_encoder_retrieve, cross_encoder_rerank, format_results
+    from utils import bi_encoder_retrieve, format_results
 
 # .\.venv\Scripts\python.exe -m streamlit run .\src\ATP_Search.py
 
@@ -23,11 +23,11 @@ def get_query_docs(query: str):
     """"""
     with st.spinner("Retrieving relevant chunks from ATP transcripts..."):
          # Search for the most similar documents
-        search_results = bi_encoder_retrieve(query=query, top_n_results=st.session_state.shared_store["top_retrieve"])
-        if st.session_state.shared_store["rerank"]:
-            search_results = cross_encoder_rerank(
-                query=query, results=search_results, top_n_results=st.session_state.shared_store["top_rerank"]
-            )
+        search_results = bi_encoder_retrieve(query=query, top_n_results=st.session_state.shared_store["top_retrieve"], rerank=st.session_state.shared_store["rerank"])
+        # if st.session_state.shared_store["rerank"]:
+        #     search_results = cross_encoder_rerank(
+        #         query=query, results=search_results, top_n_results=st.session_state.shared_store["top_rerank"]
+        #     )
         # Convert to text
         results_text = format_results(search_results)
         st.session_state.shared_store["results"] = results_text
