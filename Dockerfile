@@ -20,4 +20,4 @@ COPY . .
 EXPOSE 8501
 
 # Define the command to run your app
-ENTRYPOINT ["streamlit", "run", "src/ATP_Search.py", "--server.port=8501", "--server.address=0.0.0.0"]
+ENTRYPOINT ["streamlit", "run", "your_app.py", "--server.port=8080", "--server.address=0.0.0.0", "--server.headless=true", "--server.enableCORS=false"]
