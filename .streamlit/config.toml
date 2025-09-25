@@ -2,3 +2,5 @@
 base="dark"
 primaryColor="#3b496a"
 backgroundColor="#000000"
+[server]
+allowedOrigins = ["atp-search-tools.online", "https://atp-search-544680575847.us-east1.run.app"]
