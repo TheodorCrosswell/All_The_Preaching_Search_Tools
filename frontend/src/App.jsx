@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import "./App.css";
-import Dropdown from "./Dropdown";
+import InfoModal from "./InfoModal";
 
 function App() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -11,39 +11,10 @@ function App() {
   const [numResults, setNumResults] = useState(20);
   const [numRerankResults, setNumRerankResults] = useState(5);
   const [results, setResults] = useState([]);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // New state for loading
+
   const baseUrl = "https://atp-search-tools.online/search";
-
-  const churchLinks = [
-    {
-      href: "https://www.faithfulwordbaptist.org/page5.html",
-      label: "Faithful Word Baptist Church",
-    },
-    { href: "https://sbckjv.com/gospel/", label: "Stedfast Baptist Church" },
-    { href: "https://anchorkjv.com/", label: "Anchor Baptist Church" },
-  ];
-
-  const contactLinks = [
-    { href: "https://github.com/TheodorCrosswell", label: "Github Profile" },
-    {
-      href: "https://www.linkedin.com/in/theodor-crosswell-a08b4a2a5/",
-      label: "LinkedIn",
-    },
-  ];
-
-  const projectLinks = [
-    {
-      href: "https://hub.docker.com/repository/docker/theodorcrosswell/atp-search/general",
-      label: "Docker Repo",
-    },
-    {
-      href: "https://huggingface.co/datasets/Theodor-Crosswell/All_The_Preaching_Transcripts",
-      label: "Hugging Face Repo",
-    },
-    {
-      href: "https://github.com/TheodorCrosswell/All_The_Preaching_Search_Tools",
-      label: "Github Repo",
-    },
-  ];
 
   const handleSearchTypeChange = (event) => {
     setSearchType(event.target.value);
@@ -52,7 +23,6 @@ function App() {
   const createQueryString = (params) => {
     const searchParams = new URLSearchParams();
 
-    // Add query settings
     if (params.searchQuery) {
       searchParams.append("searchQuery", params.searchQuery);
     }
@@ -65,8 +35,6 @@ function App() {
     if (params.searchType === "vector-rerank" && params.numRerankResults) {
       searchParams.append("numRerankResults", params.numRerankResults);
     }
-
-    // Add record metadata
     if (params.preacher) {
       searchParams.append("preacher", params.preacher);
     }
@@ -81,24 +49,38 @@ function App() {
   };
 
   const handleSearch = async () => {
-    // Make the function async
-    // 1. Create the search URL
+    // 1. Set loading to true and clear previous results
+    setIsLoading(true);
+    setResults([]);
+
     const searchURL = createQueryString({
       searchQuery: searchQuery,
       searchType: searchType,
       numResults: numResults,
       numRerankResults: numRerankResults,
-      preacher: preacher,
-      title: title,
+      preacher: preacher.toLowerCase(),
+      title: title.toLowerCase(),
       videoID: videoID,
     });
 
     console.log(searchURL);
-    // It's good practice to have loading and error states
-    // e.g., setLoading(true); setError(null);
 
     try {
       const response = await fetch(`search?${searchURL}`);
+
+      if (response.status === 429) {
+        console.error(
+          "You have exceeded the search limit of 30 requests for 1 hour."
+        );
+        setResults([
+          {
+            id: 9999999_99,
+            title: "You have searched too many times this hour.",
+            content:
+              "This website allows 30 searches per hour, which you have now exceeded. Try again in 1 hour.",
+          },
+        ]);
+      }
 
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
@@ -106,12 +88,10 @@ function App() {
 
       const fetchedResults = await response.json();
 
-      // Helper function to capitalize the first letter of each word
       const capitalize = (str) => {
         return str.replace(/\b\w/g, (char) => char.toUpperCase());
       };
 
-      // Transform the columnar QueryResult into a row-oriented array
       const formattedResults = fetchedResults.ids[0].map((id, index) => ({
         id: id,
         title: capitalize(fetchedResults.metadatas[0][index].title),
@@ -133,11 +113,10 @@ function App() {
       setResults(formattedResults);
     } catch (error) {
       console.error("Failed to fetch search results:", error);
-      // You could set an error state here to show a message to the user
-      // e.g., setError(error.message);
+      // Error state could be set here to show a message to the user
     } finally {
-      // This block will run whether the fetch succeeded or failed
-      // e.g., setLoading(false);
+      // 2. Set loading back to false after fetch is complete
+      setIsLoading(false);
     }
   };
 
@@ -150,52 +129,28 @@ function App() {
 
   return (
     <div className="container">
+      <button className="info-button" onClick={() => setIsInfoModalOpen(true)}>
+        Info
+      </button>
       <h1>All The Preaching Transcript Search</h1>
-
+      {/* Search Container */}
       <div className="search-container">
         <input
           type="text"
-          placeholder="Search through sermons on AllThePreaching.com"
+          placeholder="Search through sermons from AllThePreaching.com"
           className="search-box"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-        <button className="search-button" onClick={handleSearch}>
-          Search
+        <button
+          className="search-button"
+          onClick={handleSearch}
+          disabled={isLoading}
+        >
+          {isLoading ? "Searching..." : "Search"}
         </button>
       </div>
-
-      <div className="filters-container">
-        <h2>Metadata Filters</h2>
-        <div className="filter">
-          <label htmlFor="preacher">Preacher:</label>
-          <input
-            type="text"
-            id="preacher"
-            value={preacher}
-            onChange={(e) => setPreacher(e.target.value)}
-          />
-        </div>
-        <div className="filter">
-          <label htmlFor="title">Title:</label>
-          <input
-            type="text"
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-        </div>
-        <div className="filter">
-          <label htmlFor="videoID">Video ID:</label>
-          <input
-            type="text"
-            id="videoID"
-            value={videoID}
-            onChange={handleVideoIDChange}
-          />
-        </div>
-      </div>
-
+      {/* Search Type */}
       <div className="search-options-container">
         <h2>Search Type</h2>
         <div className="radio-group">
@@ -228,7 +183,7 @@ function App() {
           </label>
         </div>
       </div>
-
+      {/* Result Options */}
       <div className="sliders-container">
         <h2>Result Options</h2>
         <div className="slider">
@@ -251,17 +206,56 @@ function App() {
               type="range"
               id="numRerankResults"
               min="1"
-              max="20"
+              max="100"
               value={numRerankResults}
               onChange={(e) => setNumRerankResults(e.target.value)}
             />
           </div>
         )}
       </div>
-
+      {/* Metadata Filters */}
+      <div className="filters-container">
+        <h2>Metadata Filters</h2>
+        <div className="filter">
+          <label htmlFor="preacher">Preacher:</label>
+          <input
+            type="text"
+            id="preacher"
+            placeholder="Must be an exact match"
+            value={preacher}
+            onChange={(e) => setPreacher(e.target.value)}
+          />
+        </div>
+        <div className="filter">
+          <label htmlFor="title">Title:</label>
+          <input
+            type="text"
+            id="title"
+            placeholder="Must be an exact match"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </div>
+        <div className="filter">
+          <label htmlFor="videoID">Video ID:</label>
+          <input
+            type="text"
+            id="videoID"
+            placeholder="Must be an exact match"
+            value={videoID}
+            onChange={handleVideoIDChange}
+          />
+        </div>
+      </div>
+      {/* Results Container */}{" "}
       <div className="results-container">
         <h2>Results</h2>
-        {results.length > 0 ? (
+        {/* 3. Conditional rendering for loading spinner */}
+        {isLoading ? (
+          <div className="spinner-container">
+            <div className="loading-spinner"></div>
+          </div>
+        ) : results.length > 0 ? (
           results.map((result) => (
             <div key={result.id} className="result-item">
               <h3>{result.title}</h3>
@@ -270,38 +264,53 @@ function App() {
               </p>
               <p>{result.content}</p>
               <div>
-                <strong>Links:</strong>
-                <a
-                  href={result.video_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Video Page
-                </a>{" "}
-                |
-                <a
-                  href={result.mp4_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  MP4
-                </a>{" "}
-                |
-                <a
-                  href={result.mp3_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  MP3
-                </a>{" "}
-                |
-                <a
-                  href={result.vtt_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  VTT
-                </a>
+                <strong>Links: </strong>
+                {/* Conditionally render each link */}
+                {result.video_url && (
+                  <>
+                    <a
+                      href={result.video_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Video Page
+                    </a>{" "}
+                    |{" "}
+                  </>
+                )}
+                {result.mp4_url && (
+                  <>
+                    <a
+                      href={result.mp4_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      MP4
+                    </a>{" "}
+                    |{" "}
+                  </>
+                )}
+                {result.mp3_url && (
+                  <>
+                    <a
+                      href={result.mp3_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      MP3
+                    </a>{" "}
+                    |{" "}
+                  </>
+                )}
+                {result.vtt_url && (
+                  <a
+                    href={result.vtt_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    VTT
+                  </a>
+                )}
               </div>
             </div>
           ))
@@ -309,47 +318,11 @@ function App() {
           <p>No results to display.</p>
         )}
       </div>
-
-      <div className="links-container">
-        <h2>Other Resources</h2>
-        <Dropdown title="Links to Churches" links={churchLinks} />
-        <Dropdown title="Contact Links" links={contactLinks} />
-        <Dropdown title="Project Links" links={projectLinks} />
-      </div>
-      <div className="about-container">
-        <h2>About this Project</h2>
-        <p>
-          Query a library of over <strong>15,000 sermon transcripts</strong>{" "}
-          from AllThePreaching.com using a specialized vector database. This
-          technology allows you to search based on the meaning and context of
-          your query, not just by matching exact keywords.
-        </p>
-        <p>
-          This is possible because every chunk of every sermon is encoded into a
-          unique numerical representation (a "vector", a list of numbers),
-          capturing its meaning. When you enter a query, it's also converted
-          into a vector, allowing the database to find and return the most
-          contextually similar chunk. This provides a more intuitive and
-          comprehensive search, helping you find the content most relevant to
-          you.
-        </p>
-      </div>
-      <div className="changelog-container">
-        <h2>Changelog</h2>
-        <h2>v0.2.1</h2>
-        <p>
-          Added full-text search functionality. Added capitalization of the
-          Preacher and Title fields. Added section, mp4_url, mp3_url, vtt_url,
-          and video_url fields. Added Changelog section. Added About section.
-          Added sidebar. Changed the color of the page.
-        </p>
-        <h2>v0.2.0</h2>
-        <p>Converted the app to use React instead of Streamlit</p>
-        <h2>v0.1.1</h2>
-        <p>Tried to patch an error caused by Streamlit</p>
-        <h2>v0.1.0</h2>
-        <p>This is the initial release</p>
-      </div>
+      {/* InfoModal component */}
+      <InfoModal
+        isOpen={isInfoModalOpen}
+        onClose={() => setIsInfoModalOpen(false)}
+      />
     </div>
   );
 }

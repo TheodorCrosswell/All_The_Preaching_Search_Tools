@@ -4,27 +4,22 @@ import time
 init_start_time = time.time()
 print("'main.py' initialization started.", flush=True)
 
-import textwrap
 import json
 from sentence_transformers import CrossEncoder
-from chromadb import QueryResult, GetResult, CloudClient
+from chromadb import QueryResult, CloudClient
 import numpy as np
 import os
 import dotenv
 
 from fastapi import FastAPI, Request, Depends, Response, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import json
-from chromadb import PersistentClient, Collection
-import zipfile
-import io
 import os
-from urllib.parse import urlparse, parse_qs
 
 from typing import Optional
 print(f"'main.py' imports done at {time.time() - init_start_time:.2f} seconds.", flush=True)
@@ -45,8 +40,8 @@ app_data = {}
 # --- Rate Limiter ---
 limiter = Limiter(key_func=get_remote_address)
 
-max_rerank_results = 200
-max_retrieval_results = 200
+max_rerank_results = 100
+max_retrieval_results = 100
 
 # The lifespan context manager
 @asynccontextmanager
@@ -225,49 +220,6 @@ def cross_encoder_rerank(
     rerank_end_time = time.time()
     print(f"Rerank for text='{query}', {len(ids)} items, top_n_results={top_n_results}, completed in {rerank_end_time - rerank_start_time:.2f} seconds.", flush=True)
     return top_n_reranked_results
-def format_results(results: QueryResult) -> str:
-    # This function does not need changes
-    if not results or not results["documents"] or not results["documents"][0]:
-        return "No results found."
-
-    formatted_items = []
-    ids_list = results.get("ids", [[]])[0]
-    metadatas_list = results.get("metadatas", [[]])[0]
-    distances_list = results.get("distances", [[]])[0]
-    scores_list = results.get("scores", [[]])[0]
-    documents = results.get("documents", [[]])[0]
-
-    for i, doc in enumerate(documents):
-        id_val = ids_list[i] if i < len(ids_list) else "N/A"
-        metadata = metadatas_list[i] if i < len(metadatas_list) else {}
-        distance = distances_list[i] if i < len(distances_list) else "N/A"
-        score = scores_list[i] if i < len(scores_list) else "N/A"
-
-        preacher_str = metadata.get("preacher", "N/A").title()
-        section_str = metadata.get("section", "N/A").title()
-        title_str = metadata.get("title", "N/A").title()
-        video_url_str = metadata.get("video_url", "#")
-        mp4_url_str = metadata.get("mp4_url", "#")
-        vtt_url_str = metadata.get("vtt_url", "#")
-        distance_str = f"{distance:.4f}" if isinstance(distance, (int, float)) else "N/A"
-        score_str = f"{score:.4f}" if isinstance(score, (int, float)) else "N/A"
-
-        # Build the formatted string for each result
-        formatted_items.append(textwrap.dedent(f"""
-        **Result #{i+1}**  
-        **Title:** {title_str}  
-        **Preacher:** {preacher_str}  
-        **Section:** {section_str}  
-        **Bi-Encoder Distance:** {distance_str}  
-        **Reranker Score:** {score_str}  
-        **Chunk ID:** `{id_val}`  
-        **Sources:**&nbsp;&nbsp;&nbsp;&nbsp;
-            [Video on ATP]({video_url_str})&nbsp;&nbsp;&nbsp;&nbsp;
-            [MP4 on ATP]({mp4_url_str})&nbsp;&nbsp;&nbsp;&nbsp;
-            [VTT (Captions) on ATP]({vtt_url_str})  
-        **Document:** {doc}
-        """))
-    return "\n\n---\n\n".join(formatted_items)
 
 # --- Serve html, js, css ---
 app.mount(
@@ -278,16 +230,30 @@ app.mount(
 
 # --- Routes ---
 @app.get("/search")
+@limiter.limit("30/hour")
 async def handle_search(
+    request: Request,  # Add Request to the function signature
     searchQuery: str,
     searchType: str,
     numResults: int = 10,
-    numRerankResults: Optional[int] = None
+    numRerankResults: Optional[int] = None,
+    title: Optional[str] = None,
+    preacher: Optional[str] = None,
+    videoID: Optional[str] = None
 ):
     """Parses the search URL and returns the results as a JSON array"""
 
     if searchType not in ["full-text", "vector", "vector-rerank"]:
         raise HTTPException(status_code=400, detail="Invalid searchType specified.")
+
+    # Consolidate metadata filters into a dictionary
+    metadata_filters = {}
+    if title:
+        metadata_filters["title"] = title
+    if preacher:
+        metadata_filters["preacher"] = preacher
+    if videoID:
+        metadata_filters["video_id"] = videoID
 
     # Determine parameters for bi_encoder_retrieve based on searchType
     query_text = searchQuery if searchType in ["vector", "vector-rerank"] else ""
@@ -300,6 +266,7 @@ async def handle_search(
         top_n_results=numResults,
         rerank=rerank,
         rerank_top_n=numRerankResults,
+        metadata_filters=metadata_filters,
         use_where_document=use_doc_filter,
         where_document_query=doc_filter_query,
     )
@@ -313,4 +280,4 @@ async def get_index():
 @app.get("/favicon.ico")
 async def get_favicon():
     """This is the favicon."""
-    return FileResponse(os.path.join(project_root, "frontend/dist/kjv.png")) # TODO
+    return FileResponse(os.path.join(project_root, "frontend/dist/kjv.png")) 

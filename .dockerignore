@@ -10,10 +10,8 @@ README.md
 temp.py
 frontend/
 !frontend/dist/
-
-
-# Now using ChromaDB Cloud instead of local DB
-.chroma_new/
+firebase-hosting
+.vscode
 
 # Ignore Git files
 .git

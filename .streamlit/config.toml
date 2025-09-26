@@ -1,6 +1,0 @@
-[theme]
-base="dark"
-primaryColor="#3b496a"
-backgroundColor="#000000"
-[server]
-corsAllowedOrigins = ["atp-search-tools.online", "https://atp-search-544680575847.us-east1.run.app"]
