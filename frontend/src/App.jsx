@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import "./App.css";
+import Dropdown from "./Dropdown";
 
 function App() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -11,6 +12,38 @@ function App() {
   const [numRerankResults, setNumRerankResults] = useState(5);
   const [results, setResults] = useState([]);
   const baseUrl = "https://atp-search-tools.online/search";
+
+  const churchLinks = [
+    {
+      href: "https://www.faithfulwordbaptist.org/page5.html",
+      label: "Faithful Word Baptist Church",
+    },
+    { href: "https://sbckjv.com/gospel/", label: "Stedfast Baptist Church" },
+    { href: "https://anchorkjv.com/", label: "Anchor Baptist Church" },
+  ];
+
+  const contactLinks = [
+    { href: "https://github.com/TheodorCrosswell", label: "Github Profile" },
+    {
+      href: "https://www.linkedin.com/in/theodor-crosswell-a08b4a2a5/",
+      label: "LinkedIn",
+    },
+  ];
+
+  const projectLinks = [
+    {
+      href: "https://hub.docker.com/repository/docker/theodorcrosswell/atp-search/general",
+      label: "Docker Repo",
+    },
+    {
+      href: "https://huggingface.co/datasets/Theodor-Crosswell/All_The_Preaching_Transcripts",
+      label: "Hugging Face Repo",
+    },
+    {
+      href: "https://github.com/TheodorCrosswell/All_The_Preaching_Search_Tools",
+      label: "Github Repo",
+    },
+  ];
 
   const handleSearchTypeChange = (event) => {
     setSearchType(event.target.value);
@@ -73,11 +106,27 @@ function App() {
 
       const fetchedResults = await response.json();
 
+      // Helper function to capitalize the first letter of each word
+      const capitalize = (str) => {
+        return str.replace(/\b\w/g, (char) => char.toUpperCase());
+      };
+
       // Transform the columnar QueryResult into a row-oriented array
       const formattedResults = fetchedResults.ids[0].map((id, index) => ({
         id: id,
-        title: fetchedResults.metadatas[0][index].title,
-        preacher: fetchedResults.metadatas[0][index].preacher,
+        title: capitalize(fetchedResults.metadatas[0][index].title),
+        preacher: capitalize(fetchedResults.metadatas[0][index].preacher),
+        section: capitalize(fetchedResults.metadatas[0][index].section),
+        video_url: fetchedResults.metadatas[0][index].video_url,
+        mp4_url: fetchedResults.metadatas[0][index].mp4_url,
+        mp3_url: fetchedResults.metadatas[0][index].mp4_url.replace(
+          /\.mp4$/,
+          ".mp3"
+        ),
+        vtt_url: fetchedResults.metadatas[0][index].mp4_url.replace(
+          /\.mp4$/,
+          ".vtt"
+        ),
         content: fetchedResults.documents[0][index],
       }));
 
@@ -101,12 +150,12 @@ function App() {
 
   return (
     <div className="container">
-      <h1>Document Search</h1>
+      <h1>All The Preaching Transcript Search</h1>
 
       <div className="search-container">
         <input
           type="text"
-          placeholder="Enter your search query..."
+          placeholder="Search through sermons on AllThePreaching.com"
           className="search-box"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -220,6 +269,40 @@ function App() {
                 <strong>Preacher:</strong> {result.preacher}
               </p>
               <p>{result.content}</p>
+              <div>
+                <strong>Links:</strong>
+                <a
+                  href={result.video_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Video Page
+                </a>{" "}
+                |
+                <a
+                  href={result.mp4_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  MP4
+                </a>{" "}
+                |
+                <a
+                  href={result.mp3_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  MP3
+                </a>{" "}
+                |
+                <a
+                  href={result.vtt_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  VTT
+                </a>
+              </div>
             </div>
           ))
         ) : (
@@ -229,93 +312,43 @@ function App() {
 
       <div className="links-container">
         <h2>Other Resources</h2>
-        <div>
-          <h3>Links to Churches</h3>
-          <ul>
-            <li>
-              <a
-                href="https://www.faithfulwordbaptist.org/page5.html"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Faithful Word Baptist Church
-              </a>
-            </li>
-            <li>
-              <a
-                href="https://sbckjv.com/gospel/"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Stedfast Baptist Church
-              </a>
-            </li>
-            <li>
-              <a
-                href="https://anchorkjv.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Anchor Baptist Church
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div>
-          <h3>Contact Links</h3>
-          <ul>
-            <li>
-              <a
-                href="https://github.com/TheodorCrosswell"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Github Profile
-              </a>
-            </li>
-            <li>
-              <a
-                href="https://www.linkedin.com/in/theodor-crosswell-a08b4a2a5/"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                LinkedIn
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div>
-          <h3>Project Links</h3>
-          <ul>
-            <li>
-              <a
-                href="https://hub.docker.com/repository/docker/theodorcrosswell/kjv-similarity-map/general"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Docker Repo
-              </a>
-            </li>
-            <li>
-              <a
-                href="https://huggingface.co/datasets/Theodor-Crosswell/KJV_Similarity"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Hugging Face Repo
-              </a>
-            </li>
-            <li>
-              <a
-                href="https://github.com/TheodorCrosswell/KJV_Search_Tools"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Github Repo
-              </a>
-            </li>
-          </ul>
-        </div>
+        <Dropdown title="Links to Churches" links={churchLinks} />
+        <Dropdown title="Contact Links" links={contactLinks} />
+        <Dropdown title="Project Links" links={projectLinks} />
+      </div>
+      <div className="about-container">
+        <h2>About this Project</h2>
+        <p>
+          Query a library of over <strong>15,000 sermon transcripts</strong>{" "}
+          from AllThePreaching.com using a specialized vector database. This
+          technology allows you to search based on the meaning and context of
+          your query, not just by matching exact keywords.
+        </p>
+        <p>
+          This is possible because every chunk of every sermon is encoded into a
+          unique numerical representation (a "vector", a list of numbers),
+          capturing its meaning. When you enter a query, it's also converted
+          into a vector, allowing the database to find and return the most
+          contextually similar chunk. This provides a more intuitive and
+          comprehensive search, helping you find the content most relevant to
+          you.
+        </p>
+      </div>
+      <div className="changelog-container">
+        <h2>Changelog</h2>
+        <h2>v0.2.1</h2>
+        <p>
+          Added full-text search functionality. Added capitalization of the
+          Preacher and Title fields. Added section, mp4_url, mp3_url, vtt_url,
+          and video_url fields. Added Changelog section. Added About section.
+          Added sidebar. Changed the color of the page.
+        </p>
+        <h2>v0.2.0</h2>
+        <p>Converted the app to use React instead of Streamlit</p>
+        <h2>v0.1.1</h2>
+        <p>Tried to patch an error caused by Streamlit</p>
+        <h2>v0.1.0</h2>
+        <p>This is the initial release</p>
       </div>
     </div>
   );

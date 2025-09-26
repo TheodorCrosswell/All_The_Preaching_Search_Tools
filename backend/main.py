@@ -208,7 +208,7 @@ def cross_encoder_rerank(
     reranked_documents = [documents[i] for i in new_order]
     reranked_metadatas = [metadatas[i] for i in new_order]
     reranked_distances = [distances[i] for i in new_order]
-    reranked_scores = [rerank_scores[i] for i in new_order]
+    reranked_scores = [float(rerank_scores[i]) for i in new_order]
 
     reranked_results = {
         "ids": [reranked_ids],
@@ -281,25 +281,29 @@ app.mount(
 async def handle_search(
     searchQuery: str,
     searchType: str,
-    numResults: int = 10,  # Provide a default value
-    numRerankResults: Optional[int] = None # Make this optional
-    ):
-    """Parses the search URL and returns the results as JSON array"""
+    numResults: int = 10,
+    numRerankResults: Optional[int] = None
+):
+    """Parses the search URL and returns the results as a JSON array"""
 
+    if searchType not in ["full-text", "vector", "vector-rerank"]:
+        raise HTTPException(status_code=400, detail="Invalid searchType specified.")
+
+    # Determine parameters for bi_encoder_retrieve based on searchType
+    query_text = searchQuery if searchType in ["vector", "vector-rerank"] else ""
+    use_doc_filter = searchType == "full-text"
+    doc_filter_query = searchQuery if searchType == "full-text" else ""
     rerank = searchType == "vector-rerank"
 
     results = bi_encoder_retrieve(
-        query=searchQuery,
+        query=query_text,
         top_n_results=numResults,
         rerank=rerank,
         rerank_top_n=numRerankResults,
-        # metadata_filters = searchQuery,
-        # use_where_document = searchQuery,
-        # where_document_query = searchQuery,
+        use_where_document=use_doc_filter,
+        where_document_query=doc_filter_query,
     )
 
-    # 3. Return the dictionary directly. FastAPI will handle JSON conversion.
-    # You don't need to call json.dumps().
     return results
 
 @app.get("/")
