@@ -4,6 +4,8 @@
 
 This project provides a web interface to perform powerful vector searches across a comprehensive collection of sermon transcripts scraped from a website. The backend is powered by FastAPI, serving a React.js frontend built with Vite.
 
+Check it out at https://atp-search-tools.online
+
 ![atp-search-tools](https://github.com/user-attachments/assets/650f54a6-647a-497a-aeff-a76b66737c6c)
 
 ## Features
